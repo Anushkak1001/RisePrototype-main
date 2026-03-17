@@ -18,12 +18,24 @@ struct Skill: Identifiable, Hashable {
 }
 
 struct Lesson: Identifiable, Hashable {
-    let id = UUID()
+    var id: UUID { UUID(uuidString: title.hashString()) ?? UUID() }
     let title: String
     let content: String
-    let choices: [String]? // if nil -> real-world prompt
-    let answerIndex: Int?  // correct choice index
+    let choices: [String]?
+    let answerIndex: Int?
     let xpReward: Int
+}
+
+extension String {
+    func hashString() -> String {
+        let hash = self.hashValue
+        return String(format: "%08X-%04X-%04X-%04X-%012X",
+                      (hash >> 32) & 0xFFFFFFFF,
+                      (hash >> 16) & 0xFFFF,
+                      hash & 0xFFFF,
+                      (hash >> 48) & 0xFFFF,
+                      hash & 0xFFFFFFFFFFFF)
+    }
 }
 
 struct Quest: Identifiable, Hashable {
@@ -559,8 +571,15 @@ struct ProgressViewTab: View {
 
                 List {
                     Section("Completed Lessons") {
+                        // Flatten all lessons from all skills
+                        let allLessons = vm.skills.flatMap { $0.lessons }
+                        
                         ForEach(Array(vm.completedLessons), id: \.self) { id in
-                            Text("Lesson: \(id.uuidString.prefix(6))...")
+                            if let lesson = allLessons.first(where: { $0.id == id }) {
+                                Text(lesson.title)
+                            } else {
+                                Text("Unknown Lesson")
+                            }
                         }
                     }
                     Section("Badges") {

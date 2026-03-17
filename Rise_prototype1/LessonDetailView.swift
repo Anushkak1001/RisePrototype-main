@@ -12,4 +12,3 @@ struct LessonDetailView: View {
     }
 }
 
-// Make sure to import the Lesson model via ContentView, or move the Lesson model to a separate file if needed.
