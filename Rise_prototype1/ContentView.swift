@@ -592,20 +592,55 @@ struct ProgressBar: View {
 }
 
 // MARK: - Community
+import SwiftUI
+
+// Post model
+struct Post: Identifiable {
+    let id = UUID()
+    let title: String
+    let content: String
+    let website: String?   // optional link
+}
 
 struct CommunityView: View {
+
+    // Sample posts
+    let posts = [
+        Post(title: "How I started budgeting", content: "I began by tracking every expense...", website: nil),
+        Post(title: "How do I pick renter's insurance?", content: "Look for coverage limits...", website: "www.amazon.com")
+    ]
+
     var body: some View {
         NavigationView {
             List {
-                Text("Rising Circles")
-                Text("Tips & Tricks: How I started budgeting")
-                Text("Ask: How do I pick renter's insurance?")
+                // Circles section
+                Section(header: Text("Circles")) {
+                    NavigationLink(destination: CircleDetailView()) {
+                        Label("Rising Circles", systemImage: "person.3.fill")
+                    }
+                }
+
+                // Discussions section
+                Section(header: Text("Discussions")) {
+
+                    ForEach(posts) { post in
+                        NavigationLink(
+                            destination: PostDetail(
+                                title: post.title,
+                                content: post.content,
+                                website: post.website
+                            )
+                        ) {
+                            Text(post.title)
+                        }
+                    }
+
+                }
             }
             .navigationTitle("Community")
         }
     }
 }
-
 // MARK: - Preview
 
 struct RisePrototype_Previews: PreviewProvider {
