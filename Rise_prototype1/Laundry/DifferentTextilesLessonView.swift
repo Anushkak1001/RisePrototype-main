@@ -33,10 +33,12 @@ struct DifferentTextilesLessonView: View {
                         .background(RoundedRectangle(cornerRadius: 10).fill(Color(.systemBackground)).shadow(radius: 1))
                     }
                 }
-                Button("Submit") {
+                Button(action: {
                     guard let sel = selectedIndex else { return }
-                    correct = vm.answerMultipleChoice(lesson, selectedIndex: sel)
+                    correct = (sel == lesson.answerIndex)
                     showResult = true
+                }) {
+                    Text("Submit")
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.top)
@@ -52,3 +54,4 @@ struct DifferentTextilesLessonView: View {
         }
     }
 }
+

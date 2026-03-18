@@ -35,9 +35,10 @@ struct ReadingPaycheckLessonView: View {
                 }
             }
             Button("Submit") {
-                guard let sel = selectedIndex else { return }
-                correct = vm.answerMultipleChoice(lesson, selectedIndex: sel)
-                showResult = true
+                if let sel = selectedIndex {
+                    correct = (sel == lesson.answerIndex)
+                    showResult = true
+                }
             }
             .buttonStyle(.borderedProminent)
             .padding(.top)

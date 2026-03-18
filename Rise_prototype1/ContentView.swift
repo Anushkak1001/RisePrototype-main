@@ -46,6 +46,13 @@ struct Quest: Identifiable, Hashable {
     let xpReward: Int
 }
 
+struct XPLog: Identifiable {
+    let id = UUID()
+    let amount: Int
+    let source: String
+    let date: Date
+}
+
 // MARK: - ViewModel
 
 final class RiseViewModel: ObservableObject {
@@ -53,25 +60,30 @@ final class RiseViewModel: ObservableObject {
     @Published var streak: Int = 0
     @Published var skills: [Skill] = []
     @Published var completedLessons: Set<UUID> = []
+    @Published var xpLogs: [XPLog] = []
 
-    // Quest state (multi-quest)
-    @Published var quests: [Quest] = [
-        Quest(title: "Cook 3 meals this week", description: "Make and log three home-cooked meals. Add a photo or a note for each.", goalCount: 3, xpReward: 50),
-        Quest(title: "Budget check-in", description: "Log your expenses on 2 different days this week.", goalCount: 2, xpReward: 40),
-        Quest(title: "Laundry day", description: "Do 2 loads: lights and darks. Fold and put away.", goalCount: 2, xpReward: 45)
+    // QUEST SYSTEM
+    @Published var questPool: [Quest] = [
+        Quest(title: "Cook 3 meals", description: "Make 3 meals at home", goalCount: 3, xpReward: 50),
+        Quest(title: "Budget check", description: "Track expenses twice", goalCount: 2, xpReward: 40),
+        Quest(title: "Laundry day", description: "Do 2 loads", goalCount: 2, xpReward: 45),
+        Quest(title: "Drink water", description: "Drink 5 glasses", goalCount: 5, xpReward: 20),
+        Quest(title: "Walk 5k steps", description: "Stay active today", goalCount: 1, xpReward: 30)
     ]
-    @Published var selectedQuestIndex: Int = 0
 
-    // Per-quest progress keyed by quest id
+    @Published var activeQuests: [Quest] = []
+    @Published var lastQuestRefresh: Date = Date()
+
     @Published var questProgress: [UUID: Int] = [:]
     @Published var questStarted: Set<UUID> = []
     @Published var questCompleted: Set<UUID> = []
-    @Published var questNotes: [UUID: [String]] = [:]
 
     init() {
         loadSampleData()
+        refreshQuestsIfNeeded()
     }
 
+    // MARK: - DATA
     func loadSampleData() {
         let financeLessons = [
             Lesson(title: "Budget Basics",
@@ -123,77 +135,60 @@ final class RiseViewModel: ObservableObject {
         ]
     }
 
+    // MARK: - XP
+    func addXP(amount: Int, source: String) {
+        xp += amount
+        xpLogs.append(XPLog(amount: amount, source: source, date: Date()))
+    }
+
     func completeLesson(_ lesson: Lesson) {
         guard !completedLessons.contains(lesson.id) else { return }
-        xp += lesson.xpReward
         completedLessons.insert(lesson.id)
+        addXP(amount: lesson.xpReward, source: lesson.title)
     }
 
-    func answerMultipleChoice(_ lesson: Lesson, selectedIndex: Int) -> Bool {
-        guard let correct = lesson.answerIndex else { return false }
-        if selectedIndex == correct {
-            completeLesson(lesson)
-            return true
+    // MARK: - QUEST ROTATION
+    func refreshQuestsIfNeeded() {
+        let days = Calendar.current.dateComponents([.day], from: lastQuestRefresh, to: Date()).day ?? 0
+
+        if days >= 3 || activeQuests.isEmpty {
+            activeQuests = Array(questPool.shuffled().prefix(2))
+            lastQuestRefresh = Date()
         }
-        return false
     }
 
-    // MARK: - Quest Logic (multi-quest)
-    private var currentQuest: Quest? {
-        guard quests.indices.contains(selectedQuestIndex) else { return nil }
-        return quests[selectedQuestIndex]
-    }
-
-    func startQuest() {
-        guard let quest = currentQuest else { return }
-        guard !questStarted.contains(quest.id) else { return }
+    // MARK: - QUEST LOGIC
+    func startQuest(_ quest: Quest) {
         questStarted.insert(quest.id)
         questProgress[quest.id] = 0
         questCompleted.remove(quest.id)
-        questNotes[quest.id] = []
     }
 
-    func addQuestEntry(note: String = "") {
-        guard let quest = currentQuest else { return }
-        guard questStarted.contains(quest.id), !questCompleted.contains(quest.id) else { return }
+    func addQuestEntry(_ quest: Quest) {
+        guard questStarted.contains(quest.id) else { return }
+
+        let newValue = min((questProgress[quest.id] ?? 0) + 1, quest.goalCount)
+        questProgress[quest.id] = newValue
+
+        if newValue >= quest.goalCount {
+            questCompleted.insert(quest.id)
+        }
+    }
+
+    func removeLastQuestEntry(_ quest: Quest) {
         let current = questProgress[quest.id] ?? 0
-        let newValue = min(current + 1, quest.goalCount)
-        questProgress[quest.id] = newValue
-        if !note.isEmpty {
-            var notes = questNotes[quest.id] ?? []
-            notes.append(note)
-            questNotes[quest.id] = notes
-        }
-        if newValue >= quest.goalCount { questCompleted.insert(quest.id) }
-    }
-
-    func removeLastQuestEntry() {
-        guard let quest = currentQuest else { return }
-        guard questStarted.contains(quest.id), (questProgress[quest.id] ?? 0) > 0 else { return }
-        let newValue = max(0, (questProgress[quest.id] ?? 0) - 1)
-        questProgress[quest.id] = newValue
-        if var notes = questNotes[quest.id], !notes.isEmpty {
-            _ = notes.removeLast()
-            questNotes[quest.id] = notes
-        }
+        questProgress[quest.id] = max(0, current - 1)
         questCompleted.remove(quest.id)
     }
 
-    func completeQuestIfEligible() {
-        guard let quest = currentQuest else { return }
-        guard questStarted.contains(quest.id), (questProgress[quest.id] ?? 0) >= quest.goalCount, !questCompleted.contains(quest.id) else { return }
-        questCompleted.insert(quest.id)
-    }
-
-    func claimQuestReward() {
-        guard let quest = currentQuest else { return }
+    func claimQuestReward(_ quest: Quest) {
         guard questCompleted.contains(quest.id) else { return }
-        xp += quest.xpReward
-        // Reset for next cycle for this quest only
+
+        addXP(amount: quest.xpReward, source: quest.title)
+
         questStarted.remove(quest.id)
         questProgress[quest.id] = 0
         questCompleted.remove(quest.id)
-        questNotes[quest.id] = []
     }
 }
 
@@ -273,10 +268,11 @@ struct HomeView: View {
             .padding()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                        Text("Rise")
-                            .italic()
-                            .foregroundStyle(.purple)
-                            .font(.system(size: 32, weight: .bold))
+                    Text("Rise 🚀")
+                        .italic()
+                        .foregroundStyle(LinearGradient(colors: [.purple, .pink, .blue], startPoint: .leading, endPoint: .trailing))
+                        .font(.system(size: 34, weight: .heavy))
+                        .shadow(color: .purple.opacity(0.6), radius: 4, x: 2, y: 2)
                 }
             }
         }
@@ -414,8 +410,7 @@ struct LessonView: View {
             LessonDetailView(lesson: lesson)
             if let choices = lesson.choices {
                 ForEach(choices.indices, id: \.self) { idx in
-                    // This is a safe unwrap with explicit iteration over choices indices
-                    // Here we just show the choice text (for demonstration)
+
                     Text(choices[idx])
                         .padding(6)
                         .background(Color.blue.opacity(0.1))
@@ -433,129 +428,58 @@ struct LessonView: View {
 }
 
 // MARK: - Quests
-
 struct QuestsView: View {
     @EnvironmentObject var vm: RiseViewModel
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 16) {
-                // Picker to choose a quest
-                Picker("Quest", selection: $vm.selectedQuestIndex) {
-                    ForEach(vm.quests.indices, id: \.self) { idx in
-                        Text(vm.quests[idx].title).tag(idx)
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(vm.activeQuests) { quest in
+                        let progress = vm.questProgress[quest.id] ?? 0
+                        let started = vm.questStarted.contains(quest.id)
+                        let completed = vm.questCompleted.contains(quest.id)
+
+                        RiseCard {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(quest.title)
+                                    .font(.headline)
+
+                                Text(quest.description)
+                                    .font(.caption)
+
+                                Text("Progress: \(progress)/\(quest.goalCount)")
+                            }
+
+                            ProgressBar(value: Double(progress) / Double(max(quest.goalCount, 1)))
+
+                            if !started {
+                                Button("Start") {
+                                    vm.startQuest(quest)
+                                }
+                            } else if completed {
+                                Button("Claim XP") {
+                                    vm.claimQuestReward(quest)
+                                }
+                            } else {
+                                HStack {
+                                    Button("+") {
+                                        vm.addQuestEntry(quest)
+                                    }
+                                    Button("-") {
+                                        vm.removeLastQuestEntry(quest)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-
-                let quest = vm.quests.indices.contains(vm.selectedQuestIndex) ? vm.quests[vm.selectedQuestIndex] : nil
-                let qid = quest?.id
-                let progress = qid.flatMap { vm.questProgress[$0] } ?? 0
-                let goal = quest?.goalCount ?? 1
-                let started = qid.map { vm.questStarted.contains($0) } ?? false
-                let completed = qid.map { vm.questCompleted.contains($0) } ?? false
-
-                if let quest = quest {
-                    RiseCard {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Weekly Quest")
-                                .font(RiseDesign.Font.section())
-                            Text(quest.title)
-                                .font(.headline)
-                                .foregroundColor(RiseDesign.Colors.purple)
-                            Text(quest.description)
-                                .font(RiseDesign.Font.caption())
-                                .foregroundColor(RiseDesign.Colors.mutedText)
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Progress: \(progress)/\(goal)")
-                                .bold()
-                            Spacer()
-                            Text("Reward: +\(quest.xpReward) XP")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        ProgressBar(value: Double(goal == 0 ? 0 : progress) / Double(max(goal, 1)))
-                            .frame(height: 16)
-                    }
-                    .padding(.horizontal)
-
-                    // Checklist
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(0..<goal, id: \.self) { index in
-                            HStack(spacing: 12) {
-                                Image(systemName: index < progress ? "checkmark.circle.fill" : "circle")
-                                    .foregroundColor(index < progress ? .green : .secondary)
-                                Text("Step #\(index + 1)")
-                                    .foregroundColor(.primary)
-                                Spacer()
-                            }
-                            .padding(10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color(UIColor.secondarySystemBackground))
-                            )
-                        }
-                    }
-                    .padding(.horizontal)
-
-                    // Controls
-                    VStack(spacing: 12) {
-                        if !started {
-                            Button {
-                                vm.startQuest()
-                            } label: {
-                                Label("Start Quest", systemImage: "play.fill")
-                            }
-                            .buttonStyle(.borderedProminent)
-                        } else if completed {
-                            Button {
-                                vm.claimQuestReward()
-                            } label: {
-                                Label("Claim Reward (+\(quest.xpReward) XP)", systemImage: "gift.fill")
-                            }
-                            .buttonStyle(.borderedProminent)
-                        } else {
-                            HStack {
-                                Button {
-                                    vm.addQuestEntry()
-                                } label: {
-                                    Label("Log Step", systemImage: "plus")
-                                }
-                                .buttonStyle(.borderedProminent)
-
-                                Button(role: .destructive) {
-                                    vm.removeLastQuestEntry()
-                                } label: {
-                                    Label("Undo", systemImage: "arrow.uturn.backward")
-                                }
-                                .buttonStyle(.bordered)
-                            }
-
-                            Button {
-                                vm.completeQuestIfEligible()
-                            } label: {
-                                Label("Mark Complete", systemImage: "checkmark.seal")
-                            }
-                            .buttonStyle(.bordered)
-                            .disabled(progress < goal)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-
-                Spacer()
+                .padding()
             }
-            .padding(.top)
             .navigationTitle("Quests")
         }
     }
 }
-
 // MARK: - Progress
 
 struct ProgressViewTab: View {
@@ -579,6 +503,17 @@ struct ProgressViewTab: View {
                                 Text(lesson.title)
                             } else {
                                 Text("Unknown Lesson")
+                            }
+                        }
+                    }
+                    Section("XP History") {
+                        ForEach(vm.xpLogs.reversed()) { log in
+                            VStack(alignment: .leading) {
+                                Text("+\(log.amount) XP from \(log.source)")
+                                    .font(.caption)
+                                Text(log.date, style: .date)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }

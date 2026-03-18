@@ -2,7 +2,6 @@
 import SwiftUI
 
 struct PanBasicsLessonView: View {
-    @EnvironmentObject var vm: RiseViewModel
     @State private var selectedIndex: Int? = nil
     @State private var showResult: Bool = false
     @State private var correct: Bool = false
@@ -30,17 +29,23 @@ struct PanBasicsLessonView: View {
                             }
                         }
                         .padding()
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color(.systemBackground)).shadow(radius: 1))
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(.regularMaterial)
+                                .shadow(radius: 1)
+                        )
                     }
                 }
-                Button("Submit") {
+                Button(action: {
                     guard let sel = selectedIndex else { return }
-                    correct = vm.answerMultipleChoice(lesson, selectedIndex: sel)
+                    correct = (sel == lesson.answerIndex)
                     showResult = true
-                }
+                }, label: {
+                    Text("Submit")
+                })
                 .buttonStyle(.borderedProminent)
                 .padding(.top)
-                .disabled(selectedIndex == nil || vm.completedLessons.contains(lesson.id))
+                .disabled(selectedIndex == nil)
             }
             Spacer()
         }
@@ -52,3 +57,4 @@ struct PanBasicsLessonView: View {
         }
     }
 }
+

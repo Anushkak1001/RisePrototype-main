@@ -23,4 +23,3 @@ struct RealWorldTaskView: View {
     }
 }
 
-// Note: This view requires Lesson and RiseViewModel types, so they must remain available (e.g., via ContentView or a models file).

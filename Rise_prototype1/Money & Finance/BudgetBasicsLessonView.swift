@@ -34,11 +34,13 @@ struct BudgetBasicsLessonView: View {
                     }
                 }
             }
-            Button("Submit") {
+            Button(action: {
                 guard let sel = selectedIndex else { return }
-                correct = vm.answerMultipleChoice(lesson, selectedIndex: sel)
+                correct = (sel == lesson.answerIndex)
                 showResult = true
-            }
+            }, label: {
+                Text("Submit")
+            })
             .buttonStyle(.borderedProminent)
             .padding(.top)
             .disabled(selectedIndex == nil || vm.completedLessons.contains(lesson.id))
