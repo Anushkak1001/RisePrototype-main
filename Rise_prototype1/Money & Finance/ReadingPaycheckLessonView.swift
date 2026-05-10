@@ -38,6 +38,9 @@ struct ReadingPaycheckLessonView: View {
                 if let sel = selectedIndex {
                     correct = (sel == lesson.answerIndex)
                     showResult = true
+                    if correct && !vm.completedLessons.contains(lesson.id) {
+                        vm.completeLesson(lesson)
+                    }
                 }
             }
             .buttonStyle(.borderedProminent)

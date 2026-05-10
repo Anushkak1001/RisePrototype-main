@@ -1,4 +1,3 @@
-// A dedicated view for the "Simple Pasta" cooking lesson (real-world prompt).
 import SwiftUI
 
 struct SimplePastaLessonView: View {

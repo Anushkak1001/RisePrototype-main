@@ -6,7 +6,7 @@ struct ChoosingDetergentsLessonView: View {
     @Environment(\.presentationMode) var presentationMode
     private let lesson = Lesson(
         title: "Choosing Detergents & Settings",
-        content: "Steps to cook al dente pasta and make a quick sauce.",
+        content: "Overview: Use HE (high-efficiency) detergent for modern washers and measure according to load size and soil level—more suds doesn't mean cleaner. For lightly soiled or bright colors, prefer cold water to preserve fabric and save energy. Warm helps dissolve detergent and handle moderate soil. Hot is best for whites, towels, and heavily soiled items (if fabric allows). Always follow the garment care label first.\n\nAction: Check one item's care label and set temperature and cycle (gentle/normal/heavy) to match the fabric and soil level.",
         choices: nil,
         answerIndex: nil,
         xpReward: 20
@@ -15,7 +15,7 @@ struct ChoosingDetergentsLessonView: View {
         VStack(spacing: 16) {
             Text(lesson.title).font(.title2).bold()
             ScrollView { Text(lesson.content).padding() }
-            Text("This lesson asks you to try choosing the right detergent/settings for your clothes. Tap the button below when you've done it to earn XP.")
+            Text("This lesson guides you to pick the right detergent amount and washer settings for your clothes. Tap the button below when you've done it to earn XP.")
                 .multilineTextAlignment(.center)
                 .padding()
             Button(action: {

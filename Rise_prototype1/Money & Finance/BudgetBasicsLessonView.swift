@@ -38,6 +38,9 @@ struct BudgetBasicsLessonView: View {
                 guard let sel = selectedIndex else { return }
                 correct = (sel == lesson.answerIndex)
                 showResult = true
+                if correct && !vm.completedLessons.contains(lesson.id) {
+                    vm.completeLesson(lesson)
+                }
             }, label: {
                 Text("Submit")
             })
@@ -54,3 +57,4 @@ struct BudgetBasicsLessonView: View {
         }
     }
 }
+

@@ -1,4 +1,3 @@
-// A dedicated view for the "Pan Basics" cooking lesson (multiple choice quiz).
 import SwiftUI
 
 struct PanBasicsLessonView: View {

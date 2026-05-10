@@ -9,8 +9,8 @@ struct DifferentTextilesLessonView: View {
 
     private let lesson = Lesson(
         title: "Different Textiles",
-        content: "What temperature range is good for a nonstick pan?",
-        choices: ["High heat always", "Low-medium", "Medium-high then low"],
+        content: "Which wash setting is safest for delicate fabrics?",
+        choices: ["Hot, heavy", "Cold, gentle", "Warm, normal"],
         answerIndex: 1,
         xpReward: 10
     )
